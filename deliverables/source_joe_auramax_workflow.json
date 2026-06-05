@@ -1,0 +1,479 @@
+{
+  "name": "AI Agent workflow - IG",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "c64a945e-97aa-46b8-90e5-837a82eb46f4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2928,
+        1328
+      ],
+      "id": "e5f0a590-e117-4ee6-9981-ebaa705ded6c",
+      "name": "Webhook",
+      "webhookId": "c64a945e-97aa-46b8-90e5-837a82eb46f4"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.custom_fields['AI > User Messages'] }}\n\nPrevious conversation context: {{ $json.body.custom_fields['conversation_summary'] ?? 'New conversation' }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=Manychat subscriber id: {{ $json.body.id }}\nCountry: {{ $json.body.custom_fields.country ?? 'unknown' }}\nFirst name: {{ $json.body.first_name}}\nLast name: {{ $json.body.last_name }}\n\n[SOURCE NOTE: The full Ruby/AuraMax system prompt is preserved in source_joe_auramax_system_prompt.md alongside this file. It is verbatim from Joe's workflow but extracted to a sibling .md file for readability and diff-ability. To restore exact n8n behavior, paste that file's contents in place of this bracketed note before importing.]",
+          "maxIterations": 9999
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        3504,
+        1360
+      ],
+      "id": "340fdf7e-fb80-4497-92c1-a7b2f25d33fb",
+      "name": "AI Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "chat-latest",
+          "mode": "list",
+          "cachedResultName": "CHAT-LATEST"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=[SOURCE NOTE: Formatter prompt preserved in source_joe_auramax_formatter_prompt.md. Splits AI Agent output into 1-6 Instagram-style messages keyed as 'AI > Answer N'.]"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 2000,
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        4224,
+        1360
+      ],
+      "id": "b46887b7-5ef6-489a-bade-2823abf2fce2",
+      "name": "Message a model",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "FWRHZwQO488KJ3Jc",
+          "name": "Kachi's OpenAi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/sending/sendFlow",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"subscriber_id\": {{$('Webhook').item.json.body.id}},\n      \"flow_ns\": \"content20251104094228_369757\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        5024,
+        1360
+      ],
+      "id": "b832c185-08fd-4fb0-bbb2-4c29e54b19f9",
+      "name": "Send Flow",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ab1l11Od3pLSTRsY",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/setCustomFields",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4800,
+        1360
+      ],
+      "id": "301a8237-2a6b-4977-8bf7-6e1aa1b87935",
+      "name": "Set AI Answers",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ab1l11Od3pLSTRsY",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "[See source_joe_auramax_tool_descriptions.md for full text] save_discovery_data: WHEN TO FIRE ONCE at end of Phase 2 with fitness_goal, pain_point, past_attempts, urgency_level, profession.",
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/setCustomFields",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"subscriber_id\": {{ $('Webhook').item.json.body.id }},\n  \"fields\": [\n    {\"field_name\": \"fitness_goal\", \"field_value\": \"{{ $fromAI('fitnessGoal', `Extract user's fitness goal. If unknown return nulll.`, 'string') }}\"},\n    {\"field_name\": \"pain_point\", \"field_value\": \"{{ $fromAI('painPoint', `Extract pain point. If unknown return nulll.`, 'string') }}\"},\n    {\"field_name\": \"past_attempts\", \"field_value\": \"{{ $fromAI('pastAttempts', `What user has tried. If unknown return nulll.`, 'string') }}\"},\n    {\"field_name\": \"urgency_level\", \"field_value\": \"{{ $fromAI('urgencyLevel', `High Medium or Low. If unknown return nulll.`, 'string') }}\"},\n    {\"field_name\": \"profession\", \"field_value\": \"{{ $fromAI('profession', `User's profession. If unknown return nulll.`, 'string') }}\"}\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3360,
+        1584
+      ],
+      "id": "86c43265-445d-4bc0-a6f4-9c286fa58762",
+      "name": "save_discovery_data",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ab1l11Od3pLSTRsY",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "[See source_joe_auramax_tool_descriptions.md] save_booking_data: WHEN TO FIRE ONCE in Phase 6 after BOTH availability and timezone collected. Fields: availability (mornings/evenings), timezone, email.",
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/setCustomFields",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"subscriber_id\": {{ $('Webhook').item.json.body.id }},\n  \"fields\": [\n    {\"field_name\": \"availability\", \"field_value\": \"{{ $fromAI('availability', `mornings or evenings`, 'string') }}\"},\n    {\"field_name\": \"timezone\", \"field_value\": \"{{ $fromAI('timezone', `Timezone string`, 'string') }}\"},\n    {\"field_name\": \"email\", \"field_value\": \"{{ $fromAI('email', `Email for booking`, 'string') }}\"}\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3536,
+        1600
+      ],
+      "id": "f2170b52-cd06-429d-b922-558473f8d4f4",
+      "name": "save_booking_data",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "HXkyWC0L4HekST0Y",
+          "name": "Joe Manychat"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "[See source_joe_auramax_tool_descriptions.md] update_conversation_state: Fires every phase transition + mid-phase in 2-5. Saves current_phase (0-6) and conversation_summary (<200 words).",
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/setCustomFields",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"subscriber_id\": {{ $('Webhook').item.json.body.id }},\n  \"fields\": [\n    {\"field_name\": \"current_phase\", \"field_value\": \"{{ $fromAI('currentPhase', `0-6`, 'number') }}\"},\n    {\"field_name\": \"conversation_summary\", \"field_value\": \"{{ $fromAI('conversationSummary', `Running summary under 200 words`, 'string') }}\"}\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3712,
+        1600
+      ],
+      "id": "8ede1dea-c83b-490c-b1f5-3fc6d7fbd8df",
+      "name": "update_conversation_state",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ab1l11Od3pLSTRsY",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "[See source_joe_auramax_tool_descriptions.md] apply_tag: Approved tags = Qualified_Lead, Disqualified_Lead, Trust_Asset_Sent, Call_Pitched, Challenge_Pitched, Call_Booked, AI_Detection_Triggered, Human_Alert_Check_Prospect.",
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/addTagByName",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {"name": "subscriber_id", "value": "={{ $('Webhook').item.json.body.id }}"},
+            {"name": "=tag_name", "value": "={{ $fromAI('parameters1_Value', `One of: Qualified_Lead, Disqualified_Lead, Trust_Asset_Sent, Call_Pitched, Challenge_Pitched, Call_Booked, AI_Detection_Triggered, Human_Alert_Check_Prospect`, 'string') }}"}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3856,
+        1584
+      ],
+      "id": "36662e75-2520-4a22-a7f3-30b5ef45bbbb",
+      "name": "apply_tag",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ab1l11Od3pLSTRsY",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "[See source_joe_auramax_tool_descriptions.md] save_qualification_data: Fires ONCE at end of Phase 0 with country + age. Tier 1 countries: USA, Canada, UK, Ireland, AUS, NZ, UAE, Qatar, Bahrain, Kuwait, Saudi, Singapore, HK, China, all Europe.",
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/setCustomFields",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"subscriber_id\": {{ $('Webhook').item.json.body.id }},\n  \"fields\": [\n    {\"field_name\": \"country\", \"field_value\": \"{{ $fromAI('country', `Country string`, 'string') }}\"},\n    {\"field_name\": \"age\", \"field_value\": \"{{ $fromAI('age', `Integer age`, 'number') }}\"}\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3984,
+        1520
+      ],
+      "id": "68b5e7e8-9b3c-48cb-a47d-fce1b333d50a",
+      "name": "save_qualification_data",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "ab1l11Od3pLSTRsY",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = items[0].json;\nconst messages = data.output[0].content[0].text.messages;\n\nconst fields = [];\nfor (let i = 0; i < messages.length; i++) {\n  if (messages[i]?.field_value) {\n    fields.push({\n      field_name: \"AI > Answer \" + (i + 1),\n      field_value: messages[i].field_value\n    });\n  }\n}\n\nreturn [\n  {\n    json: {\n      subscriber_id: $('Webhook').first().json.body.id,\n      fields: fields\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4576,
+        1360
+      ],
+      "id": "27287180-683e-46dd-a621-33a9bbec31bb",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "gpt-5.4"
+        },
+        "options": {
+          "maxTokens": 4000,
+          "responseFormat": "text",
+          "temperature": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3088,
+        1424
+      ],
+      "id": "c48073aa-2e3a-4599-9047-897566e14982",
+      "name": "AI Model",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "NPCsSq2AhoHvmhFb",
+          "name": "Joe"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=4{{ $json.body.ig_username }}5",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        3216,
+        1536
+      ],
+      "id": "a4c0b005-bf3e-4688-b17b-0554ee714cb0",
+      "name": "Memory"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "https://docs.google.com/document/d/1ofZm6fb4dmH4dfg1etrs8bm4JPuRvvxEDhSmPo5y6w8/edit?tab=t.0"
+      },
+      "type": "n8n-nodes-base.googleDocsTool",
+      "typeVersion": 2,
+      "position": [
+        4096,
+        1424
+      ],
+      "id": "17e3ea8d-b23a-4018-bc47-841bf3f9eecd",
+      "name": "Knowledge base",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "7ZOZ9OamoJSf6wKy",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Form",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "file",
+              "fieldType": "file"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
+      "position": [
+        3888,
+        1184
+      ],
+      "id": "8baa9037-ff5f-4d81-b4da-b48734eb190e",
+      "name": "On form submission",
+      "webhookId": "381a2f03-376e-4494-96bc-d02ecbc011b3"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "binaryPropertyName": "file",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        4096,
+        1184
+      ],
+      "id": "97aab4ed-ebfe-4a7d-be42-55f5277e70ea",
+      "name": "Transcribe a recording",
+      "credentials": {
+        "openAiApi": {
+          "id": "NPCsSq2AhoHvmhFb",
+          "name": "Joe"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "gpt-5.4"
+        },
+        "options": {
+          "maxTokens": 4000,
+          "responseFormat": "text",
+          "temperature": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3552,
+        1792
+      ],
+      "id": "8bb7465c-3fae-47d2-ae5c-388ca2910308",
+      "name": "AI Model1",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "FWRHZwQO488KJ3Jc",
+          "name": "Kachi's OpenAi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "addToDate",
+        "magnitude": "={{ $now }}",
+        "timeUnit": "hours",
+        "duration": 1,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dateTime",
+      "typeVersion": 2,
+      "position": [
+        3664,
+        1904
+      ],
+      "id": "da5ed4fc-bb11-4f35-82a9-868ba5f6a280",
+      "name": "Date & Time"
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "AI Agent", "type": "main", "index": 0}]]},
+    "AI Agent": {"main": [[{"node": "Message a model", "type": "main", "index": 0}]]},
+    "Message a model": {"main": [[{"node": "Code in JavaScript", "type": "main", "index": 0}]]},
+    "Set AI Answers": {"main": [[{"node": "Send Flow", "type": "main", "index": 0}]]},
+    "save_discovery_data": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "save_booking_data": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "update_conversation_state": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "apply_tag": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "save_qualification_data": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "Code in JavaScript": {"main": [[{"node": "Set AI Answers", "type": "main", "index": 0}]]},
+    "AI Model": {"ai_languageModel": [[{"node": "AI Agent", "type": "ai_languageModel", "index": 0}]]},
+    "Memory": {"ai_memory": [[{"node": "AI Agent", "type": "ai_memory", "index": 0}]]},
+    "Knowledge base": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "On form submission": {"main": [[{"node": "Transcribe a recording", "type": "main", "index": 0}]]},
+    "AI Model1": {"ai_languageModel": [[{"node": "AI Agent", "type": "ai_languageModel", "index": 1}]]},
+    "Transcribe a recording": {"main": [[]]}
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "81fdf5dd-502f-4bd7-9fe3-61b16a17a081",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ff4c5f4a4d1aa555812d0c778188f1217c609e175a1095ac80c8e2df04a83cde"
+  },
+  "id": "0umlZ1tPobWbenZjGzhYm",
+  "tags": [],
+  "_archive_note": "UNTOUCHED REFERENCE. Original Ruby/AuraMax IG DM workflow from Joe, received 2026-06-06. Long-form text fields (full system prompt, full formatter prompt, full tool descriptions) extracted into source_joe_auramax_*.md sibling files. To restore exact n8n behavior, replace bracketed [SOURCE NOTE] placeholders with contents of the corresponding .md files before importing."
+}

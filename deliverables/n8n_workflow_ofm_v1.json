@@ -1,0 +1,419 @@
+{
+  "name": "OFM IG DM Agent V1 — TEMPLATE",
+  "_note": "Working copy adapted from source_joe_auramax_workflow.json. Per-creator deployment: clone this workflow, replace ALL <PLACEHOLDER> values, set credentials, then activate. The system prompt body is in system_prompt_v1.md (paste into AI Agent node's systemMessage). The formatter prompt is in formatter_prompt_v1.md (paste into Message a model node's role:system content).",
+  "_per_creator_replacements_required": [
+    "<CREATOR_HANDLE> - creator's IG handle (e.g. bella_pilot), used in webhook path + session key + workflow name",
+    "<CREATOR_NAME> - creator's first name (e.g. Bella), used in system prompt",
+    "<KNOWLEDGE_BASE_DOC_URL> - Google Doc URL for this creator's knowledge base",
+    "<MANYCHAT_BEARER_CRED_ID> - n8n credential ID for ManyChat bearer auth (per-creator ManyChat app)",
+    "<MANYCHAT_SEND_FLOW_NS> - ManyChat flow namespace for the message-send flow",
+    "<MODEL_CRED_ID> - n8n credential ID for the LLM provider (OpenAI or Anthropic)",
+    "<GOOGLE_DOCS_CRED_ID> - n8n credential ID for Google Docs OAuth (one per agency, reused across creators)"
+  ],
+  "_model_choice_note": "Default uses OpenAI gpt-5.4 (Joe's pattern). For better empathetic / conversational quality on OFM use case, swap node type from @n8n/n8n-nodes-langchain.lmChatOpenAi to @n8n/n8n-nodes-langchain.lmChatAnthropic with model claude-sonnet-4-6. The langchain agent node abstracts the model so the swap is purely a node-replacement, no other rewiring required.",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ofm-ig-dm-<CREATOR_HANDLE>",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        2928,
+        1328
+      ],
+      "id": "ofm-webhook-001",
+      "name": "Webhook",
+      "webhookId": "ofm-ig-dm-<CREATOR_HANDLE>"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.custom_fields['AI > User Messages'] }}\n\nPrevious conversation context: {{ $json.body.custom_fields['conversation_summary'] ?? 'New conversation' }}",
+        "needsFallback": true,
+        "options": {
+          "systemMessage": "=Manychat subscriber id: {{ $json.body.id }}\nCountry: {{ $json.body.custom_fields.country ?? 'unknown' }}\nAge: {{ $json.body.custom_fields.age ?? 'unknown' }}\nFirst name: {{ $json.body.first_name }}\nLast name: {{ $json.body.last_name }}\nIG handle: {{ $json.body.ig_username }}\nCurrent phase: {{ $json.body.custom_fields.current_phase ?? '0' }}\nConversation summary: {{ $json.body.custom_fields.conversation_summary ?? 'New conversation' }}\n\n<PASTE_SYSTEM_PROMPT_V1_HERE_FROM system_prompt_v1.md, replacing [CREATOR_NAME] with <CREATOR_NAME>>",
+          "maxIterations": 9999
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [
+        3504,
+        1360
+      ],
+      "id": "ofm-ai-agent-001",
+      "name": "AI Agent",
+      "retryOnFail": true,
+      "waitBetweenTries": 5000,
+      "maxTries": 5
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "gpt-5.4"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=<PASTE_FORMATTER_PROMPT_V1_HERE_FROM formatter_prompt_v1.md>"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 2000,
+          "textFormat": {
+            "textOptions": {
+              "type": "json_object"
+            }
+          }
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2,
+      "position": [
+        4224,
+        1360
+      ],
+      "id": "ofm-formatter-001",
+      "name": "Message a model",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "<MODEL_CRED_ID>",
+          "name": "EZJ OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/sending/sendFlow",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"subscriber_id\": {{$('Webhook').item.json.body.id}},\n  \"flow_ns\": \"<MANYCHAT_SEND_FLOW_NS>\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        5024,
+        1360
+      ],
+      "id": "ofm-send-flow-001",
+      "name": "Send Flow",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "<MANYCHAT_BEARER_CRED_ID>",
+          "name": "<CREATOR_HANDLE> ManyChat Bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/setCustomFields",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        4800,
+        1360
+      ],
+      "id": "ofm-set-answers-001",
+      "name": "Set AI Answers",
+      "retryOnFail": true,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "<MANYCHAT_BEARER_CRED_ID>",
+          "name": "<CREATOR_HANDLE> ManyChat Bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "WHEN TO FIRE: ONCE, at the end of Phase 0 - only after the fan has confirmed BOTH 18+ AND their country. Do not fire early, do not fire twice.\n\nFields saved to ManyChat:\n- country (text)\n- age (number, 18+ only)\n- qualified (true/false) - true if age >=18 and not in a country where OF is illegal; false otherwise\n\nIMMEDIATELY after firing this, also call apply_tag in the same turn:\n- If qualified=false (under 18): apply Disqualified_Lead\n- Otherwise no qualifying tag needed (proceed to Phase 1)",
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/setCustomFields",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"subscriber_id\": {{ $('Webhook').item.json.body.id }},\n  \"fields\": [\n    {\"field_name\": \"country\", \"field_value\": \"{{ $fromAI('country', `Fan's confirmed country (free text). If unknown return exactly nulll.`, 'string') }}\"},\n    {\"field_name\": \"age\", \"field_value\": \"{{ $fromAI('age', `Fan's age as integer. If unknown return exactly 0.`, 'number') }}\"},\n    {\"field_name\": \"qualified\", \"field_value\": \"{{ $fromAI('qualified', `true if age>=18 and country not banned; false otherwise. If unknown return false.`, 'string') }}\"}\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3984,
+        1520
+      ],
+      "id": "ofm-tool-qual-001",
+      "name": "save_qualification_data",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "<MANYCHAT_BEARER_CRED_ID>",
+          "name": "<CREATOR_HANDLE> ManyChat Bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "WHEN TO FIRE: ONCE, at the end of Phase 2, right before transitioning to Phase 3. Hold all 5 values in memory throughout Phase 2 and push them together.\n\nFields saved to ManyChat:\n- vibe (text) - overall energy/personality the fan is showing (e.g. lonely-trucker, chatty-flirt, quiet-collector, just-curious)\n- interests (text) - what content style appeals (e.g. her chill personality, photoshoot aesthetic, spicy stuff)\n- why_followed (text) - how they found her and what brought them to DMs\n- urgency_to_sub (High/Medium/Low) - how likely to convert in this session\n- mention_of_other_creators (text or empty) - if they mention subbing to other creators previously, capture it",
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/setCustomFields",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"subscriber_id\": {{ $('Webhook').item.json.body.id }},\n  \"fields\": [\n    {\"field_name\": \"vibe\", \"field_value\": \"{{ $fromAI('vibe', `Fan's overall energy/personality. If unknown return nulll.`, 'string') }}\"},\n    {\"field_name\": \"interests\", \"field_value\": \"{{ $fromAI('interests', `What content style the fan likes. If unknown return nulll.`, 'string') }}\"},\n    {\"field_name\": \"why_followed\", \"field_value\": \"{{ $fromAI('whyFollowed', `How they found the creator and what brought them to DMs. If unknown return nulll.`, 'string') }}\"},\n    {\"field_name\": \"urgency_to_sub\", \"field_value\": \"{{ $fromAI('urgencyToSub', `High, Medium, or Low. If unknown return Low.`, 'string') }}\"},\n    {\"field_name\": \"mention_of_other_creators\", \"field_value\": \"{{ $fromAI('mentionOfOtherCreators', `If fan mentions subbing to other creators capture details, otherwise return nulll.`, 'string') }}\"}\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3360,
+        1584
+      ],
+      "id": "ofm-tool-discovery-001",
+      "name": "save_discovery_data",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "<MANYCHAT_BEARER_CRED_ID>",
+          "name": "<CREATOR_HANDLE> ManyChat Bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "WHEN TO FIRE: ONCE, in Phase 5, only after the fan explicitly confirms they subscribed. Do NOT fire on intent (\"I'll sub later\"); only on confirmation (\"done\", \"subbed\", \"just signed up\").\n\nFields saved to ManyChat:\n- subbed (true/false)\n- sub_tier (text) - what they bought (e.g. \"monthly $15\", \"yearly $99\")\n- subbed_timestamp (ISO datetime string)\n\nIMMEDIATELY after firing this, also call apply_tag with tag_name=Subscribed, then send the welcome+handoff message and stop responding (the on-platform chatter team takes over).",
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/setCustomFields",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"subscriber_id\": {{ $('Webhook').item.json.body.id }},\n  \"fields\": [\n    {\"field_name\": \"subbed\", \"field_value\": \"{{ $fromAI('subbed', `true if fan confirmed subscription, false otherwise`, 'string') }}\"},\n    {\"field_name\": \"sub_tier\", \"field_value\": \"{{ $fromAI('subTier', `Subscription tier as text. If unknown return nulll.`, 'string') }}\"},\n    {\"field_name\": \"subbed_timestamp\", \"field_value\": \"{{ $fromAI('subbedTimestamp', `ISO datetime of subscription confirmation. If unknown return nulll.`, 'string') }}\"}\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3536,
+        1600
+      ],
+      "id": "ofm-tool-sub-001",
+      "name": "save_subscription_data",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "<MANYCHAT_BEARER_CRED_ID>",
+          "name": "<CREATOR_HANDLE> ManyChat Bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "WHEN TO FIRE:\n1. Every time you transition from one phase to the next (Phase 0->1, 1->2, 2->3, 3->4, 4->5).\n2. Mid-phase during Phases 2-4 to update the running summary.\n\nFields saved to ManyChat:\n- current_phase (number 0-5) - the phase you are NOW entering\n- conversation_summary (text, under 200 words) - everything known: age, country, vibe, interests, why_followed, objections raised, phase reached. Overwrite with most complete version.",
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/setCustomFields",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"subscriber_id\": {{ $('Webhook').item.json.body.id }},\n  \"fields\": [\n    {\"field_name\": \"current_phase\", \"field_value\": \"{{ $fromAI('currentPhase', `Current phase 0-5. If unknown return 0.`, 'number') }}\"},\n    {\"field_name\": \"conversation_summary\", \"field_value\": \"{{ $fromAI('conversationSummary', `Running summary under 200 words. If unknown return nulll.`, 'string') }}\"}\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3712,
+        1600
+      ],
+      "id": "ofm-tool-state-001",
+      "name": "update_conversation_state",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "<MANYCHAT_BEARER_CRED_ID>",
+          "name": "<CREATOR_HANDLE> ManyChat Bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "WHEN TO FIRE: when a milestone is reached. Use ONLY these exact tag values:\n\n- Trust_Asset_Sent: Fire when a teaser asset is referenced (Phase 3)\n- OF_Link_Pitched: Fire the moment the OF subscribe link goes out (Phase 4)\n- Subscribed: Fire when the fan confirms they subscribed (Phase 5) - this stops further messages\n- AI_Detection_Triggered: Fire if fan asks one of the 5 disclosure-trigger phrases\n- Disqualified_Lead: Fire if confirmed under 18 OR aggressive hostility / scam behavior\n- Human_Alert_Check_Prospect: Fire on mental health concern, threats, anything outside Bella's scope\n\nMay fire multiple times in a conversation, once per milestone. Never fire speculatively.",
+        "method": "POST",
+        "url": "https://api.manychat.com/fb/subscriber/addTagByName",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {"name": "subscriber_id", "value": "={{ $('Webhook').item.json.body.id }}"},
+            {"name": "=tag_name", "value": "={{ $fromAI('tagName', `One of: Trust_Asset_Sent, OF_Link_Pitched, Subscribed, AI_Detection_Triggered, Disqualified_Lead, Human_Alert_Check_Prospect`, 'string') }}"}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.3,
+      "position": [
+        3856,
+        1584
+      ],
+      "id": "ofm-tool-tag-001",
+      "name": "apply_tag",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "<MANYCHAT_BEARER_CRED_ID>",
+          "name": "<CREATOR_HANDLE> ManyChat Bearer"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = items[0].json;\nconst messages = data.output[0].content[0].text.messages;\n\nconst fields = [];\nfor (let i = 0; i < messages.length; i++) {\n  if (messages[i]?.field_value) {\n    fields.push({\n      field_name: \"AI > Answer \" + (i + 1),\n      field_value: messages[i].field_value\n    });\n  }\n}\n\nreturn [\n  {\n    json: {\n      subscriber_id: $('Webhook').first().json.body.id,\n      fields: fields\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4576,
+        1360
+      ],
+      "id": "ofm-code-001",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "gpt-5.4"
+        },
+        "options": {
+          "maxTokens": 4000,
+          "responseFormat": "text",
+          "temperature": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3088,
+        1424
+      ],
+      "id": "ofm-model-001",
+      "name": "AI Model",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "<MODEL_CRED_ID>",
+          "name": "EZJ OpenAI"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=ofm_<CREATOR_HANDLE>_{{ $json.body.ig_username }}",
+        "contextWindowLength": 30
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        3216,
+        1536
+      ],
+      "id": "ofm-memory-001",
+      "name": "Memory"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "<KNOWLEDGE_BASE_DOC_URL>"
+      },
+      "type": "n8n-nodes-base.googleDocsTool",
+      "typeVersion": 2,
+      "position": [
+        4096,
+        1424
+      ],
+      "id": "ofm-kb-001",
+      "name": "Knowledge base",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "<GOOGLE_DOCS_CRED_ID>",
+          "name": "EZJ Google Docs"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.4",
+          "mode": "list",
+          "cachedResultName": "gpt-5.4"
+        },
+        "options": {
+          "maxTokens": 4000,
+          "responseFormat": "text",
+          "temperature": 1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3552,
+        1792
+      ],
+      "id": "ofm-model-fallback-001",
+      "name": "AI Model Fallback",
+      "retryOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "<MODEL_CRED_ID>",
+          "name": "EZJ OpenAI"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {"main": [[{"node": "AI Agent", "type": "main", "index": 0}]]},
+    "AI Agent": {"main": [[{"node": "Message a model", "type": "main", "index": 0}]]},
+    "Message a model": {"main": [[{"node": "Code in JavaScript", "type": "main", "index": 0}]]},
+    "Code in JavaScript": {"main": [[{"node": "Set AI Answers", "type": "main", "index": 0}]]},
+    "Set AI Answers": {"main": [[{"node": "Send Flow", "type": "main", "index": 0}]]},
+    "save_qualification_data": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "save_discovery_data": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "save_subscription_data": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "update_conversation_state": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "apply_tag": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "Knowledge base": {"ai_tool": [[{"node": "AI Agent", "type": "ai_tool", "index": 0}]]},
+    "AI Model": {"ai_languageModel": [[{"node": "AI Agent", "type": "ai_languageModel", "index": 0}]]},
+    "AI Model Fallback": {"ai_languageModel": [[{"node": "AI Agent", "type": "ai_languageModel", "index": 1}]]},
+    "Memory": {"ai_memory": [[{"node": "AI Agent", "type": "ai_memory", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "tags": []
+}
