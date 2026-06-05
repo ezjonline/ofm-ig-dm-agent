@@ -31,7 +31,7 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 load_dotenv(Path.home() / ".claude-secrets" / "claudia" / ".env")
 
 N8N_BASE_URL = os.environ.get("N8N_BASE_URL", "https://n8n.ezjonline.com").rstrip("/")
-WEBHOOK_URL = f"{N8N_BASE_URL}/webhook/ofm-sim-mia"
+WEBHOOK_URL = f"{N8N_BASE_URL}/webhook/ofm-sim-mia-v2"
 
 SIM_DIR = REPO_ROOT / "agency" / "products" / "ofm_ig_dm_agent" / "simulator"
 LOG_DIR = SIM_DIR / "logs"
@@ -151,25 +151,42 @@ def run_scenario(scenario_name: str):
         log_lines.append(f"")
 
         resp = post_message(session_id, fan_msg)
-        bella_raw = resp.get("output") if isinstance(resp, dict) else None
+        # New format from V2 full-shape workflow: { messages: [...], combined: "..." }
+        # Old format from v1 simulator: { output: "..." }
+        if isinstance(resp, dict):
+            bella_msgs = resp.get("messages")
+            bella_combined = resp.get("combined") or resp.get("output")
+        else:
+            bella_msgs = None
+            bella_combined = None
 
-        if not bella_raw:
-            err = resp.get("error") or json.dumps(resp)[:200]
+        if not bella_combined:
+            err = resp.get("error") or json.dumps(resp)[:200] if isinstance(resp, dict) else str(resp)
             print(f"  [error] {err}\n")
             log_lines.append(f"**Bella (ERROR):** {err}")
             log_lines.append(f"")
             break
 
-        tags = extract_sim_tags(bella_raw)
-        bella_clean = strip_sim_tags(bella_raw)
+        tags = extract_sim_tags(bella_combined)
+        bella_clean = strip_sim_tags(bella_combined)
         all_bella_text.append(bella_clean)
 
-        print(f"  [Bella] {bella_clean}")
+        if bella_msgs and len(bella_msgs) > 1:
+            print(f"  [Bella] ({len(bella_msgs)} msgs)")
+            for bm in bella_msgs:
+                print(f"          {strip_sim_tags(bm)}")
+        else:
+            print(f"  [Bella] {bella_clean}")
         if tags:
             print(f"  [tags] {', '.join(tags)}")
         print()
 
-        log_lines.append(f"**Bella:** {bella_clean}")
+        if bella_msgs and len(bella_msgs) > 1:
+            log_lines.append(f"**Bella** ({len(bella_msgs)} msgs):")
+            for bm in bella_msgs:
+                log_lines.append(f"- {strip_sim_tags(bm)}")
+        else:
+            log_lines.append(f"**Bella:** {bella_clean}")
         if tags:
             log_lines.append(f"")
             log_lines.append(f"_SIM tags fired: {', '.join(tags)}_")

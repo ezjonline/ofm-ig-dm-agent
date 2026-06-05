@@ -229,7 +229,7 @@
   </footer>
 </div>
 <script>
-const WEBHOOK = "https://n8n.ezjonline.com/webhook/ofm-sim-mia";
+const WEBHOOK = "https://n8n.ezjonline.com/webhook/ofm-sim-mia-v2";
 const KEY = "ofm-sim-session";
 
 let sessionId = localStorage.getItem(KEY);
@@ -263,13 +263,16 @@ function render() {
       b.textContent = turn.text;
       chat.appendChild(b);
     } else if (turn.role === "bella") {
-      // Split Bella into IG-style separate bubbles on sentence boundaries when she sent a multi-sentence message
-      const parts = turn.text.split(/(?<=[.!?])\s+(?=[A-Z🔥💕😏😄😊🙈🇨🇦🇺🇸])/);
-      for (const p of parts) {
-        if (!p.trim()) continue;
+      // Bella's messages now arrive pre-split from the n8n formatter node.
+      // Each item in turn.messages is one IG-style bubble.
+      const msgs = (turn.messages && turn.messages.length)
+        ? turn.messages
+        : [turn.text || ""];
+      for (const m of msgs) {
+        if (!m || !m.trim()) continue;
         const b = document.createElement("div");
         b.className = "bubble bella";
-        b.innerHTML = urlify(p.trim());
+        b.innerHTML = urlify(m.trim());
         chat.appendChild(b);
       }
       if (turn.tags && turn.tags.length) {
@@ -318,10 +321,20 @@ async function send(text) {
     if (!r.ok) throw new Error("HTTP " + r.status);
     const data = await r.json();
     typing.remove();
-    const raw = data.output || "[no output]";
-    const tags = extractTags(raw);
-    const clean = stripTags(raw);
-    history.push({ role: "bella", text: clean, tags });
+    // New format: { messages: [...], combined: "..." }
+    // Old format: { output: "..." }  (kept for backwards compat)
+    const rawMessages = Array.isArray(data.messages) ? data.messages : null;
+    const combined = data.combined || data.output || "[no output]";
+    const tags = extractTags(combined);
+    const cleanMessages = rawMessages
+      ? rawMessages.map(stripTags).filter(s => s.trim())
+      : [stripTags(combined)];
+    history.push({
+      role: "bella",
+      text: cleanMessages.join("\n"),
+      messages: cleanMessages,
+      tags,
+    });
     persist();
     render();
   } catch (e) {
