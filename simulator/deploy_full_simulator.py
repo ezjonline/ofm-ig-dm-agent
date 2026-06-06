@@ -171,9 +171,15 @@ def build_mock_manychat() -> dict:
 
 
 def build_ofm_workflow() -> dict:
-    """Full-shape OFM workflow mirroring Joe's structure node-for-node."""
+    """Full-shape OFM workflow. Same as Joe's, minus the formatter LLM hop.
+
+    Bella's system prompt now instructs her to use blank-line delimiters
+    between IG bubbles. A deterministic Code node splits on `\\n\\n` and
+    emits the same fields-array shape Joe produced. One less LLM call per
+    turn, faster, cheaper, more reliable (no JSON-mode + tool-calling
+    interaction risk).
+    """
     system_msg = baked_system_message()
-    formatter_msg = load_formatter_body()
 
     mock_set_fields_url = f"{N8N_BASE_URL}/webhook/{MOCK_SET_FIELDS_PATH}"
     mock_add_tag_url = f"{N8N_BASE_URL}/webhook/{MOCK_ADD_TAG_PATH}"
@@ -316,78 +322,44 @@ def build_ofm_workflow() -> dict:
             "id": "tool-tag",
             "name": "apply_tag",
         },
-        # 11. FORMATTER (Message a model). Content prefixed with `=` so n8n
-        # evaluates the {{ $('AI Agent').item.json.output }} expression in
-        # the prompt body. Without the `=`, the placeholder is sent as
-        # literal text and the model hallucinates against the examples.
-        {
-            "parameters": {
-                "modelId": {"__rl": True, "value": "gpt-4o-mini", "mode": "list", "cachedResultName": "gpt-4o-mini"},
-                "responses": {"values": [{"role": "system", "content": "=" + formatter_msg}]},
-                "options": {
-                    "maxTokens": 1500,
-                    "textFormat": {"textOptions": {"type": "json_object"}},
-                },
-            },
-            "type": "@n8n/n8n-nodes-langchain.openAi",
-            "typeVersion": 2,
-            "position": [800, 300],
-            "id": "ofm-formatter",
-            "name": "Message a model",
-            "credentials": {"openAiApi": {"id": OPENAI_CRED_ID, "name": OPENAI_CRED_NAME}},
-        },
-        # 12. CODE (splits into AI > Answer N fields, mirrors Joe's).
-        # The 'text' field from the formatter's output[0].content[0] arrives
-        # as either an already-parsed object (when responseFormat is json_object)
-        # or a JSON string. Handle both. Fall back to AI Agent output if the
-        # formatter returns something unexpected.
+        # 11. CODE (split agent output on blank-line delimiter).
+        # Bella's system prompt instructs her to put a blank line between
+        # IG-style message bubbles. We split on \n\s*\n, cap at 6 bubbles
+        # (the ManyChat AI > Answer 1..6 slot capacity), trim whitespace,
+        # and emit the same fields-array shape Joe's workflow used so the
+        # downstream Set AI Answers node stays identical to production.
+        # This replaces the Message-a-model LLM hop with deterministic
+        # string ops: one less LLM call, faster, cheaper, more reliable.
         {
             "parameters": {
                 "jsCode": (
-                    "const data = items[0].json;\n"
-                    "let messages = [];\n"
-                    "try {\n"
-                    "  let payload = null;\n"
-                    "  if (data && data.output && Array.isArray(data.output) && data.output[0] && data.output[0].content && data.output[0].content[0]) {\n"
-                    "    const t = data.output[0].content[0].text;\n"
-                    "    payload = (typeof t === 'string') ? JSON.parse(t) : t;\n"
-                    "  } else if (data && data.message && data.message.content) {\n"
-                    "    payload = (typeof data.message.content === 'string') ? JSON.parse(data.message.content) : data.message.content;\n"
-                    "  }\n"
-                    "  if (payload && Array.isArray(payload.messages)) {\n"
-                    "    messages = payload.messages;\n"
-                    "  }\n"
-                    "} catch (e) {}\n"
-                    "// Final fallback: use the raw AI Agent output as a single message\n"
-                    "if (!messages.length) {\n"
-                    "  const agentOut = $('AI Agent').first().json.output;\n"
-                    "  const text = typeof agentOut === 'string' ? agentOut : JSON.stringify(agentOut);\n"
-                    "  messages = [{ field_name: 'AI > Answer 1', field_value: text }];\n"
+                    "const raw = $('AI Agent').first().json.output || '';\n"
+                    "const text = typeof raw === 'string' ? raw : (raw.output || JSON.stringify(raw));\n"
+                    "// Split on blank lines (one or more newlines with only whitespace between)\n"
+                    "let parts = text.split(/\\n\\s*\\n+/).map(s => s.trim()).filter(Boolean);\n"
+                    "// If the agent forgot to use blank-line splits, fall back to a single bubble\n"
+                    "if (!parts.length) parts = [text.trim()];\n"
+                    "// Cap at 6 bubbles to match ManyChat's AI > Answer 1..6 fields\n"
+                    "if (parts.length > 6) {\n"
+                    "  const tail = parts.slice(5).join('\\n\\n');\n"
+                    "  parts = parts.slice(0, 5).concat([tail]);\n"
                     "}\n"
-                    "const fields = [];\n"
-                    "const texts = [];\n"
-                    "for (let i = 0; i < messages.length; i++) {\n"
-                    "  const m = messages[i];\n"
-                    "  if (m && m.field_value) {\n"
-                    "    fields.push({ field_name: 'AI > Answer ' + (i + 1), field_value: m.field_value });\n"
-                    "    texts.push(m.field_value);\n"
-                    "  }\n"
-                    "}\n"
+                    "const fields = parts.map((value, i) => ({ field_name: 'AI > Answer ' + (i + 1), field_value: value }));\n"
                     "return [{ json: {\n"
                     "  subscriber_id: $('Webhook').first().json.body.session_id,\n"
                     "  fields,\n"
-                    "  texts,\n"
-                    "  combined: texts.join('\\n'),\n"
+                    "  texts: parts,\n"
+                    "  combined: parts.join('\\n\\n'),\n"
                     "} }];"
                 ),
             },
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
-            "position": [1000, 300],
+            "position": [800, 300],
             "id": "ofm-code",
-            "name": "Code in JavaScript",
+            "name": "Split into messages",
         },
-        # 13. SET AI ANSWERS (writes to mock ManyChat custom fields, parity with Joe)
+        # 12. SET AI ANSWERS (writes to mock ManyChat custom fields, parity with Joe)
         {
             "parameters": {
                 "method": "POST",
@@ -399,20 +371,20 @@ def build_ofm_workflow() -> dict:
             },
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 4.3,
-            "position": [1200, 300],
+            "position": [1000, 300],
             "id": "ofm-set-answers",
             "name": "Set AI Answers",
         },
-        # 14. RESPOND TO WEBHOOK (returns messages array to chat.html)
+        # 13. RESPOND TO WEBHOOK (returns messages array to chat.html)
         {
             "parameters": {
                 "respondWith": "json",
-                "responseBody": "={{ JSON.stringify({ messages: $('Code in JavaScript').first().json.texts, combined: $('Code in JavaScript').first().json.combined }) }}",
+                "responseBody": "={{ JSON.stringify({ messages: $('Split into messages').first().json.texts, combined: $('Split into messages').first().json.combined }) }}",
                 "options": {},
             },
             "type": "n8n-nodes-base.respondToWebhook",
             "typeVersion": 1.1,
-            "position": [1400, 300],
+            "position": [1200, 300],
             "id": "ofm-respond",
             "name": "Respond to Webhook",
         },
@@ -420,9 +392,8 @@ def build_ofm_workflow() -> dict:
 
     connections = {
         "Webhook": {"main": [[{"node": "AI Agent", "type": "main", "index": 0}]]},
-        "AI Agent": {"main": [[{"node": "Message a model", "type": "main", "index": 0}]]},
-        "Message a model": {"main": [[{"node": "Code in JavaScript", "type": "main", "index": 0}]]},
-        "Code in JavaScript": {"main": [[{"node": "Set AI Answers", "type": "main", "index": 0}]]},
+        "AI Agent": {"main": [[{"node": "Split into messages", "type": "main", "index": 0}]]},
+        "Split into messages": {"main": [[{"node": "Set AI Answers", "type": "main", "index": 0}]]},
         "Set AI Answers": {"main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]},
         "AI Model": {"ai_languageModel": [[{"node": "AI Agent", "type": "ai_languageModel", "index": 0}]]},
         "AI Model Fallback": {"ai_languageModel": [[{"node": "AI Agent", "type": "ai_languageModel", "index": 1}]]},
