@@ -133,12 +133,26 @@ def baked_system_message() -> str:
 
 
 def find_workflow_id(name: str) -> str | None:
-    r = requests.get(f"{N8N_BASE_URL}/api/v1/workflows", headers=HEADERS, timeout=30)
-    r.raise_for_status()
-    for w in r.json().get("data", []):
-        if w["name"] == name:
-            return w["id"]
-    return None
+    """Find a workflow by exact name, paginating across all workflows.
+
+    The n8n API returns ~100 workflows per page by default. EZJ's instance
+    has 150+ workflows, so a single GET misses the OFM ones and the deploy
+    script ends up creating duplicates on every run. Paginate by cursor.
+    """
+    cursor = None
+    while True:
+        params = "?limit=250"
+        if cursor:
+            params += f"&cursor={cursor}"
+        r = requests.get(f"{N8N_BASE_URL}/api/v1/workflows{params}", headers=HEADERS, timeout=30)
+        r.raise_for_status()
+        data = r.json()
+        for w in data.get("data", []):
+            if w["name"] == name:
+                return w["id"]
+        cursor = data.get("nextCursor")
+        if not cursor:
+            return None
 
 
 def deactivate(wf_id: str):
