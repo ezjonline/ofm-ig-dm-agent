@@ -1,16 +1,83 @@
 # OFM IG DM Agent — Go-To-Market + Deploy + Dashboard Strategy
 
+**UPDATE 2026-06-06 (Joe + EZJ session):** strategy is now explicitly two-pronged. Phase 1 is the service business that pays the bills; Phase 2 is the productized AI-creator stack that becomes the real company. See section 0 below.
+
 EZJ asked the right questions on 2026-06-06:
 1. How do we deploy to multiple OF creators?
 2. Who do we sell to — OFMs or direct to creators?
 3. What does the no-risk offer look like?
 4. What's the attribution / dashboard story?
 
-This doc captures the answers.
+This doc captures the answers plus the two-prong pivot from the Joe session.
 
 ---
 
-## 1. Who we sell to: OFMs, not creators
+## 0. THE TWO-PRONG STRATEGY (Joe + EZJ 2026-06-06)
+
+### Prong 1: Bella-as-a-service (the cash flow play)
+
+**What:** Install Bella into existing creators' / OFM agencies' IG DMs. The creator is real, her content is real, we just run the conversion layer on top. Service business: setup + rev share.
+
+**Why first:** Cash flow now, real attribution numbers, real testimonials. Validates the bot in production against real fan behavior before we bet bigger.
+
+**Status:** Building right now. Bella works on the simulator. Production wiring (ManyChat per-creator setup) is the next step.
+
+**Target unit economics:** $0 setup + 15% rev share on attributable subs. Mid-tier creator $20k/mo OF + 20% lift = $4k/mo new revenue × 15% = **$600/mo MRR per creator**. 5 creators = $3k. 3 OFMs at 5 creators = $9k MRR. Hits $10k goal.
+
+**Ceiling:** Linear. We're stuck at "% of someone else's revenue." Margins capped by the OFM/creator share.
+
+### Prong 2: We are the creator (the moat play)
+
+**What:** End-to-end AI-generated baddies. WE own the entire stack:
+- AI-generated IG profile (photos, videos, captions, daily content)
+- AI-generated OF content behind the paywall (photo sets, custom videos, sexting)
+- AI Bella running the IG DMs (same agent we already built)
+- AI Maya running the on-platform OF chats (V2 of the agent)
+- AI growth via paid ads + organic content engine
+
+**Why second:** Higher margins (100% of revenue, not 15%), no creator drama, no OFM dependency, fully productized. This is the real company. Phase 1 funds the build of Phase 2.
+
+**Status:** Not started. See PHASE_2_AI_CREATORS.md.
+
+**Target unit economics:** One AI creator at $20k/mo OF revenue = $20k MRR per persona. Stack cost: ~$200-500/mo per persona. **90%+ margins. One AI creator = 33 Bella-as-a-service installs in revenue terms.**
+
+**Ceiling:** Effectively uncapped. 10 personas = $200k/mo. 50 personas = $1M/mo. Real company territory.
+
+### What's the same in both prongs (the build leverage)
+
+| Asset | Used in Prong 1 | Used in Prong 2 |
+|---|---|---|
+| Bella (IG DM agent) | yes, sold as service | yes, internal use |
+| Maya (V2 on-platform chatter) | yes, sold as service | yes, internal use |
+| ManyChat integration | yes, per-creator deploy | yes, per-AI-creator deploy |
+| Knowledge-base doc template | per real creator | per AI persona |
+| Attribution dashboard | OFM-facing | internal-only |
+| n8n workflow infra | shared | shared |
+
+**Build leverage is huge.** Everything we ship for Prong 1 reuses for Prong 2 directly. Phase 1 funds Phase 2. Phase 2 doesn't compete with Phase 1; it scales beyond it.
+
+### Why both prongs at the same time
+
+Solo founders usually pick "build the moat" first because it's sexy, then starve themselves of capital. We do both:
+
+- **Joe + EZJ focus on Prong 1 sales + voice tuning** (this week through month 1)
+- **EZJ + Claudia build Prong 2 in the background** (content generation, persona, IG growth) (month 1-3)
+- **First AI creator (Mia, fully AI) goes live month 2-3** — initially as demo asset for Prong 1 outreach, then her revenue becomes Prong 2 revenue
+- **By month 6, Prong 2 revenue should exceed Prong 1 revenue; we double down on Prong 2 from there**
+
+**Mia the test creator we built today becomes the FIRST production AI creator.** The simulator persona graduates into a real product.
+
+### Strategic decisions locked from this session
+
+1. We're going both prongs. Not "Prong 1 first then Prong 2 later."
+2. Mia is our first AI creator. She started as the simulator test, she becomes the real product.
+3. Joe owns voice + persona (across both prongs). EZJ owns infra, content generation, deploys.
+4. Phase 2 build doc goes in this repo. Not a separate project. Same agent stack, different inputs.
+5. Prong 1 outreach happens with REAL Mia (Phase 2 alpha) as the demo asset. We sell Prong 1 by showing OFMs "look what we built ourselves, want this for your real creators?"
+
+---
+
+## 1. Prong 1: Who we sell to (OFMs, not creators)
 
 **Decision: sell to OnlyFans Management agencies. Not direct to creators.**
 

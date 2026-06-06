@@ -1,14 +1,24 @@
 # OFM IG DM Agent
 
-AI-driven Instagram DM agent that converts an OF creator's followers into paying OF subscribers. Productized service sold to OnlyFans Management (OFM) agencies.
+AI Instagram DM agent that converts an OF creator's followers into paying OF subs. Two-pronged business:
 
-This is a working repo extracted from `ezjonline/claudia` as a standalone project so multiple developers can collaborate without exposing the broader agency codebase.
+1. **Prong 1 — Bella-as-a-service:** install the bot in real OFM creators' IG DMs. Service biz, 15% rev share. Cash flow now. **Building Harvey pilot.**
+2. **Prong 2 — We are the creator:** end-to-end AI-generated OF creators (visual + content + chat + growth). The moat. **Mia is persona #1, starting build in parallel.**
+
+Strategy doc: [GTM_STRATEGY.md](GTM_STRATEGY.md) (both prongs).
+Phase 2 build: [PHASE_2_AI_CREATORS.md](PHASE_2_AI_CREATORS.md) (the AI creator stack).
+
+This is a working repo extracted from `ezjonline/claudia` as a standalone project so EZJ + Joe can collaborate without exposing the broader agency codebase.
 
 ## Status
 
-V1 simulator is live. Bella (the agent) handles a full 6-phase conversion arc on the simulator with all 5 ManyChat tool calls firing into a mock workflow. Test her now at the local chat UI (instructions below).
+V1 simulator is live. Bella (the agent) handles a full 6-phase conversion arc on the simulator with all 5 ManyChat tool calls firing into a mock workflow. Test her at the local chat UI (instructions below).
 
-See [STATUS.md](STATUS.md) for the full architecture map and [GTM_STRATEGY.md](GTM_STRATEGY.md) for the business plan.
+- [STATUS.md](STATUS.md) — architecture lifecycle map (sim → real OFM pilot → V2 on-platform → Phase 2 AI creators)
+- [GTM_STRATEGY.md](GTM_STRATEGY.md) — two-prong business plan, unit economics, dashboard roadmap
+- [PHASE_2_AI_CREATORS.md](PHASE_2_AI_CREATORS.md) — end-to-end AI creator stack
+- [COLLAB.md](COLLAB.md) — two-dev git workflow, sandbox isolation, branch protection
+- [v2_onplatform_options.md](v2_onplatform_options.md) — Chrome extension chatter assistant analysis
 
 ## Quick start
 
