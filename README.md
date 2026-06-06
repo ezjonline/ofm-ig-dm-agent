@@ -17,6 +17,7 @@ V1 simulator is live. Bella (the agent) handles a full 6-phase conversion arc on
 - [STATUS.md](STATUS.md) — architecture lifecycle map (sim → real OFM pilot → V2 on-platform → Phase 2 AI creators)
 - [GTM_STRATEGY.md](GTM_STRATEGY.md) — two-prong business plan, unit economics, dashboard roadmap
 - [PHASE_2_AI_CREATORS.md](PHASE_2_AI_CREATORS.md) — end-to-end AI creator stack
+- [ATTRIBUTION.md](ATTRIBUTION.md) — how we prove Bella drove the sub (4-layer stack: Supabase + short link + OF promo + cross-ref)
 - [COLLAB.md](COLLAB.md) — two-dev git workflow, sandbox isolation, branch protection
 - [v2_onplatform_options.md](v2_onplatform_options.md) — Chrome extension chatter assistant analysis
 
