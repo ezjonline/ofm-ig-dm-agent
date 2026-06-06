@@ -31,7 +31,11 @@ REPO_ROOT = Path(__file__).resolve().parents[4]
 load_dotenv(Path.home() / ".claude-secrets" / "claudia" / ".env")
 
 N8N_BASE_URL = os.environ.get("N8N_BASE_URL", "https://n8n.ezjonline.com").rstrip("/")
-WEBHOOK_URL = f"{N8N_BASE_URL}/webhook/ofm-sim-mia-v2"
+# Auto-picks up the same OFM_SIM_OWNER suffix the deploy script uses, so each
+# developer's runner hits their own sandbox without code edits.
+_OWNER = os.environ.get("OFM_SIM_OWNER", "").strip().lower()
+_SUFFIX = f"-{_OWNER}" if _OWNER else ""
+WEBHOOK_URL = f"{N8N_BASE_URL}/webhook/ofm-sim-mia-v2{_SUFFIX}"
 
 SIM_DIR = REPO_ROOT / "agency" / "products" / "ofm_ig_dm_agent" / "simulator"
 LOG_DIR = SIM_DIR / "logs"

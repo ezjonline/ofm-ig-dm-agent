@@ -57,13 +57,25 @@ SYSTEM_PROMPT_FILE = REPO_ROOT / "agency" / "products" / "ofm_ig_dm_agent" / "de
 FORMATTER_PROMPT_FILE = REPO_ROOT / "agency" / "products" / "ofm_ig_dm_agent" / "deliverables" / "formatter_prompt_v1.md"
 MIA_PERSONA_FILE = SIM_DIR / "mia_test_creator.md"
 
-MOCK_MC_NAME = "OFM Mock ManyChat (SIM)"
-OFM_NAME = "OFM IG DM Agent SIMULATOR (Mia) V2 FULL"
+# Per-developer workflow isolation.
+# Set OFM_SIM_OWNER in your env to deploy a sandbox that doesn't clobber
+# anyone else's. Examples:
+#   EZJ runs:        (unset, default)        -> /webhook/ofm-sim-mia-v2
+#   Joe runs:        OFM_SIM_OWNER=joe       -> /webhook/ofm-sim-mia-v2-joe
+#   Anyone CI/test:  OFM_SIM_OWNER=ci        -> /webhook/ofm-sim-mia-v2-ci
+# Each dev's chat.html and run_simulation.py auto-pick up the right
+# webhook because they read OFM_SIM_OWNER too (see below).
+_OWNER = os.environ.get("OFM_SIM_OWNER", "").strip().lower()
+_SUFFIX = f"-{_OWNER}" if _OWNER else ""
+_NAME_SUFFIX = f" [{_OWNER.upper()}]" if _OWNER else ""
 
-OFM_WEBHOOK_PATH = "ofm-sim-mia-v2"
-MOCK_SET_FIELDS_PATH = "mock-mc-setCustomFields"
-MOCK_ADD_TAG_PATH = "mock-mc-addTagByName"
-MOCK_SEND_FLOW_PATH = "mock-mc-sendFlow"
+MOCK_MC_NAME = f"OFM Mock ManyChat (SIM){_NAME_SUFFIX}"
+OFM_NAME = f"OFM IG DM Agent SIMULATOR (Mia) V2 FULL{_NAME_SUFFIX}"
+
+OFM_WEBHOOK_PATH = f"ofm-sim-mia-v2{_SUFFIX}"
+MOCK_SET_FIELDS_PATH = f"mock-mc-setCustomFields{_SUFFIX}"
+MOCK_ADD_TAG_PATH = f"mock-mc-addTagByName{_SUFFIX}"
+MOCK_SEND_FLOW_PATH = f"mock-mc-sendFlow{_SUFFIX}"
 
 
 def load_prompt_body() -> str:

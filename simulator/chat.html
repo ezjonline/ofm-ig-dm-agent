@@ -229,7 +229,12 @@
   </footer>
 </div>
 <script>
-const WEBHOOK = "https://n8n.ezjonline.com/webhook/ofm-sim-mia-v2";
+// Webhook URL. Override with ?owner=joe (or any owner suffix) in the URL
+// to point at a different developer's sandbox without editing this file.
+// Default = EZJ's production sim.
+const _ownerParam = new URLSearchParams(location.search).get("owner");
+const _suffix = _ownerParam ? `-${_ownerParam.toLowerCase()}` : "";
+const WEBHOOK = `https://n8n.ezjonline.com/webhook/ofm-sim-mia-v2${_suffix}`;
 const KEY = "ofm-sim-session";
 
 let sessionId = localStorage.getItem(KEY);
