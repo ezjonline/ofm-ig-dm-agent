@@ -333,8 +333,14 @@ def build_ofm_workflow() -> dict:
         {
             "parameters": {
                 "jsCode": (
-                    "const raw = $('AI Agent').first().json.output || '';\n"
-                    "const text = typeof raw === 'string' ? raw : (raw.output || JSON.stringify(raw));\n"
+                    "let raw = $('AI Agent').first().json.output || '';\n"
+                    "let text = typeof raw === 'string' ? raw : (raw.output || JSON.stringify(raw));\n"
+                    "// Strip n8n langchain agent tool-trace leakage. The ToolsAgent V3\n"
+                    "// sometimes prefixes/inlines '[Used tools: Tool: foo, Input: ..., Result: ...]'\n"
+                    "// into its final text output. Those traces must never reach the fan.\n"
+                    "text = text.replace(/\\[Used tools?: [^\\]]*?\\]\\s*/gs, '');\n"
+                    "// Strip any leading whitespace left behind\n"
+                    "text = text.replace(/^\\s+/, '').replace(/\\s+$/, '');\n"
                     "// Split on blank lines (one or more newlines with only whitespace between)\n"
                     "let parts = text.split(/\\n\\s*\\n+/).map(s => s.trim()).filter(Boolean);\n"
                     "// If the agent forgot to use blank-line splits, fall back to a single bubble\n"

@@ -39,6 +39,19 @@ LOG_DIR.mkdir(exist_ok=True)
 
 
 SCENARIOS = {
+    "vibe_test": [
+        # Tests the new flirty Phase 0 flow: fan doesn't volunteer age
+        # up front, so Bella has to weave it in naturally over turns 2-4
+        "hey",
+        "what's up",
+        "saw her on explore, she's hot",
+        "lol I'm 25, NYC",
+        "yeah honestly just trying to find some new energy",
+        "nah never paid for one before",
+        "okay you got me, what do I do",
+        "alright I'm in",
+        "ok subbed lmao",
+    ],
     "happy_path": [
         "heyyy",
         "yeah I'm 24",
