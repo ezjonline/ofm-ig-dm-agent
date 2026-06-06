@@ -27,8 +27,18 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
-load_dotenv(Path.home() / ".claude-secrets" / "claudia" / ".env")
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# Load env from local .env first, then ~/.claude-secrets/ofm-ig-dm-agent/.env,
+# then legacy ~/.claude-secrets/claudia/.env.
+for _env_path in [
+    REPO_ROOT / ".env",
+    Path.home() / ".claude-secrets" / "ofm-ig-dm-agent" / ".env",
+    Path.home() / ".claude-secrets" / "claudia" / ".env",
+]:
+    if _env_path.exists():
+        load_dotenv(_env_path)
+        break
 
 N8N_BASE_URL = os.environ.get("N8N_BASE_URL", "https://n8n.ezjonline.com").rstrip("/")
 # Auto-picks up the same OFM_SIM_OWNER suffix the deploy script uses, so each
@@ -37,7 +47,7 @@ _OWNER = os.environ.get("OFM_SIM_OWNER", "").strip().lower()
 _SUFFIX = f"-{_OWNER}" if _OWNER else ""
 WEBHOOK_URL = f"{N8N_BASE_URL}/webhook/ofm-sim-mia-v2{_SUFFIX}"
 
-SIM_DIR = REPO_ROOT / "agency" / "products" / "ofm_ig_dm_agent" / "simulator"
+SIM_DIR = REPO_ROOT / "simulator"
 LOG_DIR = SIM_DIR / "logs"
 LOG_DIR.mkdir(exist_ok=True)
 

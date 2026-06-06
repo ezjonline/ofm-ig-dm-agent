@@ -1,0 +1,34 @@
+# Secrets and local env
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
+env/
+.Python
+*.egg-info/
+.pytest_cache/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+*~
+
+# Local generated artifacts
+simulator/logs/*.md
+!simulator/logs/.gitkeep
+simulator/simulator_workflow.json
+simulator/full_simulator_workflow.json
+
+# Claude Code local state
+.claude/

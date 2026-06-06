@@ -42,8 +42,21 @@ from pathlib import Path
 import requests
 from dotenv import load_dotenv
 
-REPO_ROOT = Path(__file__).resolve().parents[4]
-load_dotenv(Path.home() / ".claude-secrets" / "claudia" / ".env")
+# Standalone repo layout: simulator/ is one level under repo root.
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# Load env from:
+# 1. Local .env at repo root (preferred, per-dev override)
+# 2. ~/.claude-secrets/ofm-ig-dm-agent/.env (recommended for shared secrets)
+# 3. ~/.claude-secrets/claudia/.env (legacy fallback, EZJ's existing setup)
+for _env_path in [
+    REPO_ROOT / ".env",
+    Path.home() / ".claude-secrets" / "ofm-ig-dm-agent" / ".env",
+    Path.home() / ".claude-secrets" / "claudia" / ".env",
+]:
+    if _env_path.exists():
+        load_dotenv(_env_path)
+        break
 
 N8N_BASE_URL = os.environ.get("N8N_BASE_URL", "https://n8n.ezjonline.com").rstrip("/")
 N8N_API_KEY = os.environ["N8N_API_KEY"]
@@ -52,9 +65,9 @@ HEADERS = {"X-N8N-API-KEY": N8N_API_KEY, "Content-Type": "application/json"}
 OPENAI_CRED_ID = "ZmA2gnjYXr7QhKQw"
 OPENAI_CRED_NAME = "YouTube Research Agent - OpenAi"
 
-SIM_DIR = REPO_ROOT / "agency" / "products" / "ofm_ig_dm_agent" / "simulator"
-SYSTEM_PROMPT_FILE = REPO_ROOT / "agency" / "products" / "ofm_ig_dm_agent" / "deliverables" / "system_prompt_v1.md"
-FORMATTER_PROMPT_FILE = REPO_ROOT / "agency" / "products" / "ofm_ig_dm_agent" / "deliverables" / "formatter_prompt_v1.md"
+SIM_DIR = REPO_ROOT / "simulator"
+SYSTEM_PROMPT_FILE = REPO_ROOT / "deliverables" / "system_prompt_v1.md"
+FORMATTER_PROMPT_FILE = REPO_ROOT / "deliverables" / "formatter_prompt_v1.md"
 MIA_PERSONA_FILE = SIM_DIR / "mia_test_creator.md"
 
 # Per-developer workflow isolation.

@@ -2,29 +2,36 @@
 
 Two developers, same project, no stepping on each other. Standard git flow with one twist: per-dev sandbox workflows on the shared n8n instance.
 
+This is a **standalone repo** at `ezjonline/ofm-ig-dm-agent`. Joe only gets access to this repo, not to EZJ's broader agency codebase. Different repo means different access control.
+
 ---
 
 ## One-time setup (per developer)
 
 ### EZJ (already done)
-- Repo at `https://github.com/ezjonline/claudia`
-- Secrets at `~/.claude-secrets/claudia/.env`
+- Repo at `https://github.com/ezjonline/ofm-ig-dm-agent`
+- Local checkout at `~/ofm-ig-dm-agent/` (separate from `~/claudia/`)
+- Secrets live at `~/.claude-secrets/claudia/.env` (legacy) OR `<repo>/.env` OR `~/.claude-secrets/ofm-ig-dm-agent/.env` (recommended for new setups). The deploy script checks all three.
 - Default sandbox = no suffix → `/webhook/ofm-sim-mia-v2`
 
 ### Joe (first-time setup)
 
-1. **Get added to the GitHub repo.** EZJ goes to https://github.com/ezjonline/claudia/settings/access → Add people → Joe's username → role: **Write**. Joe accepts via email.
+1. **Get added to the GitHub repo.** EZJ runs from his terminal:
+   ```bash
+   gh repo invite ezjonline/ofm-ig-dm-agent <joe-github-username> --permission write
+   ```
+   Or via UI: https://github.com/ezjonline/ofm-ig-dm-agent/settings/access → Add people → Joe's username → role: **Write**. Joe accepts via email.
 
 2. **Clone + install:**
    ```bash
-   git clone https://github.com/ezjonline/claudia.git
-   cd claudia
+   git clone https://github.com/ezjonline/ofm-ig-dm-agent.git
+   cd ofm-ig-dm-agent
    python3 -m venv venv
    source venv/bin/activate
-   pip install -r requirements.txt
+   pip install requests python-dotenv
    ```
 
-3. **Set up secrets** at `~/.claude-secrets/claudia/.env` (EZJ shares values via 1Password / DM):
+3. **Set up secrets.** Easiest: drop a `.env` file at the repo root (gitignored automatically). EZJ shares values via 1Password / DM:
    ```
    N8N_BASE_URL=https://n8n.ezjonline.com
    N8N_API_KEY=<from EZJ>
@@ -34,22 +41,22 @@ Two developers, same project, no stepping on each other. Standard git flow with 
    ```
    The last line is the critical part. It namespaces all his n8n workflows and webhooks so he's never overwriting EZJ's.
 
-4. **Install Claude Code** the same way EZJ has it (https://docs.claude.com/claude-code).
+4. **Install Claude Code** (https://docs.claude.com/claude-code). Joe opens it pointed at his cloned `ofm-ig-dm-agent` directory. His Claude Code only sees this project, nothing else of EZJ's.
 
 5. **Deploy his own sandbox:**
    ```bash
    source venv/bin/activate
-   python3 agency/products/ofm_ig_dm_agent/simulator/deploy_full_simulator.py
+   python3 simulator/deploy_full_simulator.py
    ```
    This creates two new n8n workflows tagged `[JOE]`:
    - `OFM IG DM Agent SIMULATOR (Mia) V2 FULL [JOE]`
    - `OFM Mock ManyChat (SIM) [JOE]`
-   
+
    And his webhook becomes `/webhook/ofm-sim-mia-v2-joe`. EZJ's stays untouched.
 
 6. **Chat with his Bella:**
    ```bash
-   cd agency/products/ofm_ig_dm_agent/simulator
+   cd simulator
    python3 -m http.server 8080
    ```
    Then open `http://localhost:8080/chat.html?owner=joe`. The `?owner=joe` URL param points chat.html at his sandbox.
