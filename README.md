@@ -14,6 +14,7 @@ This is a working repo extracted from `ezjonline/claudia` as a standalone projec
 
 V1 simulator is live. Bella (the agent) handles a full 6-phase conversion arc on the simulator with all 5 ManyChat tool calls firing into a mock workflow. Test her at the local chat UI (instructions below).
 
+- **[ROADMAP.md](ROADMAP.md)** — full phased build plan (P0 → P6), owner-tagged, time-boxed, with decisions blocking forward motion
 - [STATUS.md](STATUS.md) — architecture lifecycle map (sim → real OFM pilot → V2 on-platform → Phase 2 AI creators)
 - [GTM_STRATEGY.md](GTM_STRATEGY.md) — two-prong business plan, unit economics, dashboard roadmap
 - [PHASE_2_AI_CREATORS.md](PHASE_2_AI_CREATORS.md) — end-to-end AI creator stack
