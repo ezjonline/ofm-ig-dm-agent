@@ -32,3 +32,6 @@ simulator/full_simulator_workflow.json
 
 # Claude Code local state
 .claude/
+
+# scraped lead data (PII), local only
+leads/
