@@ -164,17 +164,25 @@ def run_apify_serp(queries, results_per_page, max_pages, timeout=240):
         f"/run-sync-get-dataset-items?token={token}"
     )
     data = json.dumps(payload).encode()
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
     log(f"running Apify SERP over {len(queries)} queries (resultsPerPage={results_per_page}, maxPages={max_pages})...")
-    try:
-        with urllib.request.urlopen(req, timeout=timeout, context=SSL_CTX) as r:
-            return json.loads(r.read().decode())
-    except urllib.error.HTTPError as e:
-        log(f"Apify HTTP {e.code}: {e.read().decode()[:300]}")
-        sys.exit(1)
-    except Exception as e:
-        log(f"Apify call failed: {e}")
-        sys.exit(1)
+    attempts = 3
+    for attempt in range(1, attempts + 1):
+        req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=timeout, context=SSL_CTX) as r:
+                return json.loads(r.read().decode())
+        except urllib.error.HTTPError as e:
+            # 4xx (bad request, auth) won't fix on retry; 5xx might
+            if e.code < 500 or attempt == attempts:
+                log(f"Apify HTTP {e.code}: {e.read().decode()[:300]}")
+                sys.exit(1)
+            log(f"Apify HTTP {e.code}, retry {attempt}/{attempts}...")
+        except Exception as e:
+            if attempt == attempts:
+                log(f"Apify call failed after {attempts} attempts: {e}")
+                sys.exit(1)
+            log(f"Apify transient error ({e}), retry {attempt}/{attempts}...")
+        time.sleep(2 * attempt)
 
 
 def extract_handle(url, title):
