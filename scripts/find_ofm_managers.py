@@ -99,24 +99,40 @@ def load_env():
                 os.environ[m.group(1)] = m.group(2).strip().strip('"').strip("'")
 
 
-def build_queries():
-    """Query matrix: anchors crossed with recruiting-CTA tokens, scoped to IG."""
+def build_queries(niches=None):
+    """Query matrix: agency anchors x recruiting-CTA tokens, scoped to IG.
+
+    Optionally niche-qualified (e.g. fitness, alt, cosplay) to reach agencies
+    that brand around a vertical instead of the generic "management" wording.
+    """
     site = "site:instagram.com"
     anchors = [
         '"OnlyFans management agency"',
         '"OnlyFans management"',
         '"OF management agency"',
+        '"OFM agency"',
         '"creator management" OnlyFans',
-        'OFM agency models',
+        '"we manage OnlyFans"',
+        '"model management" OnlyFans',
+        '"talent agency" OnlyFans',
+        '"adult content agency" management',
+        '"OnlyFans agency"',
     ]
-    cta = ['"now signing"', '"DM to apply"', '"top 1%"', '"now accepting" models']
+    cta = [
+        '"now signing"', '"DM to apply"', '"apply below"', '"top 1%"',
+        '"now accepting" models', '"scale your OnlyFans"',
+    ]
     queries = []
     for a in anchors:
         queries.append(f"{site} {a}")
-    # cross a couple of anchors with CTA tokens for higher-intent operator pages
-    for a in ('"OnlyFans management"', "OFM agency"):
+    # cross the strongest anchors with CTA/proof tokens for higher-intent pages
+    for a in ('"OnlyFans management"', '"OFM agency"', '"OnlyFans agency"'):
         for c in cta:
             queries.append(f"{site} {a} {c}")
+    # niche-qualified variants (agencies that brand around a vertical)
+    for n in (niches or []):
+        queries.append(f'{site} "{n}" "OnlyFans management agency"')
+        queries.append(f'{site} "{n}" "OnlyFans agency" signing')
     # the confirmed seed query (caps mimics how operators title their bios)
     queries.append("ONLYFANS MANAGEMENT AGENCY instagram")
     # de-dupe, preserve order
@@ -241,10 +257,13 @@ def anthropic_judge(cand, api_key, timeout=40):
         f"Handle: @{cand['ig_handle']}\n"
         f"SERP snippet: {cand['snippet']}\n\n"
         "Classify this account as exactly one word:\n"
-        "operator  = an OFM agency / manager / recruiter that sells management to creators\n"
+        "operator  = an agency that specifically recruits/manages/scales OnlyFans (adult/18+) creators\n"
         "model     = an individual creator's own page (a product, not a buyer)\n"
-        "collision = unrelated business or person that merely shares a name\n"
+        "collision = a GENERIC talent, influencer, modeling, marketing, or digital agency that is\n"
+        "            NOT specifically OnlyFans/adult focused, OR any unrelated business sharing a name\n"
         "unsure    = not enough signal\n\n"
+        "Only answer 'operator' if there is OnlyFans / adult-creator / fansly / PPV / subs / 18+ "
+        "evidence. A mainstream talent or marketing agency with no adult signal is 'collision'.\n"
         "Answer with only the one word."
     )
     body = json.dumps({
@@ -300,10 +319,12 @@ def main():
     ap.add_argument("--min-score", type=int, default=2)
     ap.add_argument("--no-judge", action="store_true", help="skip the LLM-judge gate")
     ap.add_argument("--keep-unsure", action="store_true", help="also keep 'unsure' verdicts")
+    ap.add_argument("--niches", default="", help="comma-separated niches to qualify queries, e.g. fitness,alt,cosplay")
     args = ap.parse_args()
 
     load_env()
-    queries = build_queries()
+    niches = [n.strip() for n in args.niches.split(",") if n.strip()]
+    queries = build_queries(niches)
     items = run_apify_serp(queries, args.results_per_page, args.max_pages)
     cands = parse_serp(items)
     log(f"parsed {len(cands)} unique IG candidates from SERP")
