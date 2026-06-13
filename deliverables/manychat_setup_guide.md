@@ -2,6 +2,17 @@
 
 Follow this checklist for every new creator. Estimated time: 60-90 minutes once the n8n workflow template is in place.
 
+## Source of truth (deployed 2026-06-13)
+
+The production workflow is built by `deliverables/production/deploy_production.py`, which deploys an INACTIVE workflow named `OFM IG DM Agent PRODUCTION (Bella x <Creator>)`. Re-run it per creator with env overrides (`OFM_CREATOR_SLUG`, `OFM_CREATOR_NAME`, `OFM_CREATOR_HANDLE`, `OFM_MANYCHAT_CRED_ID`, `OFM_KB_DOC_URL`). Where this section conflicts with older details below, this section wins:
+
+- **Webhook path:** `ofm-prod-<slug>` (e.g. `https://n8n.ezjonline.com/webhook/ofm-prod-mia`), not `ofm-ig-dm-<handle>`.
+- **ManyChat Bearer cred:** wired in the script (default `EZJ ManyChat API`, the Mia-test account). All tool nodes + Set AI Answers already reference it. No manual placeholder swap unless onboarding a different ManyChat account.
+- **Message source:** the External Request posts `{{$ContactJson}}`; the agent reads the fan's message from the `AI > User Messages` custom field (with `last_input_text` / `message` fallbacks). The trigger flow MUST set `AI > User Messages` before the External Request fires.
+- **Session memory key:** the ManyChat subscriber `id` (unique per fan). No manual key format needed.
+- **Sending replies:** n8n's `Set AI Answers` writes `AI > Answer 1..6` to ManyChat via the API, then returns. ManyChat runs the send flow (3.5) as the next step after the External Request. There is NO n8n `Send Flow` node in this build, so Step 6 below is obsolete.
+- **Activate only after** the KB Google Doc URL is set (`OFM_KB_DOC_URL`) and the ManyChat trigger flows + custom fields exist.
+
 ## Prerequisites
 
 - Creator's IG account has a Business or Creator profile (required for ManyChat).
@@ -96,9 +107,9 @@ Note: Copy the Flow Namespace from Flow 3.5 (found under flow URL or via ManyCha
 2. In each ManyChat External Request action, paste this URL.
 3. Activate the n8n workflow.
 
-## Step 6: Wire the Send Flow
+## Step 6: Wire the Send Flow — OBSOLETE in the current build
 
-1. In the n8n workflow's `Send Flow` HTTP node, replace `<MANYCHAT_SEND_FLOW_NS>` with the Flow 3.5 namespace.
+The current production workflow has no n8n `Send Flow` node. n8n writes `AI > Answer 1..6` to ManyChat via `Set AI Answers` and returns; ManyChat runs the send flow (3.5) as the next step in the trigger flow, right after the External Request. Skip this step. (Kept for history.)
 
 ## Step 7: End-to-end smoke test
 
@@ -121,6 +132,6 @@ If any step fails, check n8n execution log and ManyChat live chat log.
 
 - **Webhook returns 200 but no messages send back.** ManyChat custom fields may not be populating. Check the n8n `Set AI Answers` node payload for proper field names (case-sensitive, including spaces: `AI > Answer 1`).
 - **Bot replies in the wrong creator's voice.** Knowledge base doc URL is wrong in the n8n `Knowledge base` node. Verify per-creator.
-- **Sessions mix up between fans.** Session key in n8n Memory node not unique enough. Confirm format `ofm_<CREATOR_HANDLE>_{{ ig_username }}`.
+- **Sessions mix up between fans.** The Memory node keys on the ManyChat subscriber `id` (`{{ $json.body.id }}`), which is unique per fan. If sessions bleed, confirm the External Request posts the full `{{$ContactJson}}` so `body.id` is present.
 - **`AI > User Messages` field not populating.** ManyChat trigger flow's first action must explicitly set this field before the External Request fires.
 - **Messages contain dashes.** System prompt is doing its job but formatter is letting them through. Check formatter prompt v1 has the no-dashes rule active.
