@@ -6,8 +6,8 @@ This mirrors Joe's AuraMax workflow architecture node-for-node:
 
     Webhook
        v
-    AI Agent  +-- AI Model (gpt-4o)
-       +-- AI Model Fallback (gpt-4o-mini)
+    AI Agent  +-- AI Model (Claude Sonnet 4.6)
+       +-- AI Model Fallback (gpt-4o-mini, cross-provider)
        +-- Memory (session-keyed window)
        +-- Knowledge base (Mia inlined in system prompt)
        +-- save_qualification_data  --> Mock ManyChat /setCustomFields
@@ -64,6 +64,9 @@ HEADERS = {"X-N8N-API-KEY": N8N_API_KEY, "Content-Type": "application/json"}
 
 OPENAI_CRED_ID = "ZmA2gnjYXr7QhKQw"
 OPENAI_CRED_NAME = "YouTube Research Agent - OpenAi"
+# Anthropic credit topped up 2026-06-13. Primary model swapped back to Sonnet 4.6.
+ANTHROPIC_CRED_ID = "WMwxvyJGynY7n2aB"
+ANTHROPIC_CRED_NAME = "Anthropic v3"
 
 SIM_DIR = REPO_ROOT / "simulator"
 SYSTEM_PROMPT_FILE = REPO_ROOT / "deliverables" / "system_prompt_v1.md"
@@ -277,18 +280,18 @@ def build_ofm_workflow() -> dict:
             "waitBetweenTries": 3000,
             "maxTries": 2,
         },
-        # 3. PRIMARY MODEL
+        # 3. PRIMARY MODEL (Anthropic Sonnet 4.6 — credit topped up 2026-06-13)
         {
             "parameters": {
-                "model": {"__rl": True, "value": "gpt-4o", "mode": "list", "cachedResultName": "gpt-4o"},
-                "options": {"maxTokens": 2000, "temperature": 0.9},
+                "model": {"__rl": True, "value": "claude-sonnet-4-6", "mode": "list", "cachedResultName": "Claude Sonnet 4.6"},
+                "options": {"maxTokensToSample": 2000, "temperature": 0.9},
             },
-            "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-            "typeVersion": 1.2,
+            "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+            "typeVersion": 1.3,
             "position": [400, 500],
             "id": "ofm-model",
             "name": "AI Model",
-            "credentials": {"openAiApi": {"id": OPENAI_CRED_ID, "name": OPENAI_CRED_NAME}},
+            "credentials": {"anthropicApi": {"id": ANTHROPIC_CRED_ID, "name": ANTHROPIC_CRED_NAME}},
         },
         # 4. FALLBACK MODEL
         {

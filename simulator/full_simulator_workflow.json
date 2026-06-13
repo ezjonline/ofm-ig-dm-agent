@@ -44,17 +44,17 @@
       "parameters": {
         "model": {
           "__rl": true,
-          "value": "gpt-4o",
+          "value": "claude-sonnet-4-6",
           "mode": "list",
-          "cachedResultName": "gpt-4o"
+          "cachedResultName": "Claude Sonnet 4.6"
         },
         "options": {
-          "maxTokens": 2000,
+          "maxTokensToSample": 2000,
           "temperature": 0.9
         }
       },
-      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
-      "typeVersion": 1.2,
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
       "position": [
         400,
         500
@@ -62,9 +62,9 @@
       "id": "ofm-model",
       "name": "AI Model",
       "credentials": {
-        "openAiApi": {
-          "id": "ZmA2gnjYXr7QhKQw",
-          "name": "YouTube Research Agent - OpenAi"
+        "anthropicApi": {
+          "id": "WMwxvyJGynY7n2aB",
+          "name": "Anthropic v3"
         }
       }
     },
